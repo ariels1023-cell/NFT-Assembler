@@ -1,0 +1,21 @@
+{
+  "name": "NFT-Assembler - Gestor de Proyectos",
+  "short_name": "NFT-Assembler",
+  "description": "Calculadora y visor 3D para ensamblaje de bancos de hidroponía",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NFT-Assembler - Planos y Presupuestos</title>
+  
+  <!-- Etiquetas PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NFT-Assembler">
+  <!-- Icono genérico (asegúrate de tener un icon-192.png en la carpeta) -->
+  <link rel="apple-touch-icon" href="icon-192.png">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background: #f1f5f9; color: #1e293b; margin: 0; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); display: flex; flex-direction: column; gap: 20px;}
+    h1, h2, h3 { color: #0f172a; margin-top: 0; }
+    h2 { border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
+    h3 { margin-top: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+    
+    .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .project-card { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; }
+    .project-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #0ea5e9; }
+    .project-card h3 { margin: 0 0 10px 0; color: #0ea5e9; border: none; padding: 0; }
+    .project-card p { margin: 5px 0; color: #64748b; font-size: 14px; }
+    .btn-delete { position: absolute; top: 15px; right: 15px; background: #fee2e2; color: #ef4444; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: bold; transition: background 0.2s; }
+    .btn-delete:hover { background: #ef4444; color: white; }
+    .empty-state { text-align: center; padding: 50px 20px; color: #94a3b8; background: white; border-radius: 8px; border: 2px dashed #cbd5e1; }
+    
+    .editor-header { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;}
+    .input-name-container { display: flex; align-items: center; gap: 10px; flex-grow: 1; }
+    .input-name-container label { font-weight: bold; color: #475569; font-size: 16px; }
+    .input-name { font-size: 18px; font-weight: bold; padding: 8px 12px; border: 2px solid #cbd5e1; border-radius: 6px; width: 100%; max-width: 350px; outline: none; color: #0f172a; transition: border-color 0.2s; }
+    .input-name:focus { border-color: #0ea5e9; background: #f0f9ff; }
+    
+    .btn-primary { background: #10b981; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2s;}
+    .btn-primary:hover { background: #059669; }
+    .btn-secondary { background: #64748b; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2s;}
+    .btn-secondary:hover { background: #475569; }
+    .btn-danger { background: #ef4444; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2s;}
+    .btn-danger:hover { background: #dc2626; }
+
+    .view-controls { display: flex; gap: 10px; margin-bottom: 5px; overflow-x: auto; padding-bottom: 5px; }
+    .btn-view { padding: 10px 15px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-weight: 600; color: #475569; transition: all 0.2s; white-space: nowrap; }
+    .btn-view.active { background: #0ea5e9; color: white; border-color: #0284c7; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); }
+    
+    .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 10px 0; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;}
+    .input-group { display: flex; flex-direction: column; gap: 6px; }
+    .input-group label { font-weight: 600; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;}
+    input[type="number"] { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 16px; font-weight: bold; color: #0f172a; width: 100%; box-sizing: border-box; }
+    
+    .table-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 600px; }
+    th { background: #f1f5f9; padding: 10px; text-align: left; font-size: 14px; color: #475569; border-bottom: 2px solid #cbd5e1; }
+    td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    .table-cortes th { background: #e0f2fe; color: #0369a1; border-bottom: 2px solid #bae6fd; }
+    .table-cortes td { font-size: 14px; font-family: monospace; }
+    .total-box { text-align: right; margin-top: 15px; font-size: 22px; font-weight: 800; color: #047857; background: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #10b981; }
+    
+    .canvas-container { width: 100%; height: 60vh; min-height: 400px; border-radius: 8px; border: 1px solid #cbd5e1; overflow: hidden; background: #fff;}
+    #threejs-canvas-container { width: 100%; height: 100%; background-color: #1e293b; cursor: grab; }
+    #threejs-canvas-container:active { cursor: grabbing; }
+    
+    .blueprint-svg { width: 100%; height: 100%; background-color: #f8fafc; }
+    .cota-text { font-family: monospace; font-size: 13px; font-weight: bold; fill: #0f172a; }
+    .cota-text-small { font-family: monospace; font-size: 12px; font-weight: bold; fill: #0369a1; }
+    .cota-line { stroke: #64748b; stroke-width: 1.5; stroke-dasharray: 4; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const PRECIOS_BASE = {
+      tuboEstructural10ft: 8.50, esquinero3Vias: 2.50, tee4Vias: 3.20,
+      teeRegular: 1.20, tuboCultivo3: 25.00, tapon3: 4.00, codo3: 3.50,
+      bushing3a34: 2.80, tee34: 1.50, llavePaso34: 5.50, codo34: 0.90,
+      mallaCanagrow: 18.99, cajaHDX: 14.98, bombaAgua: 19.50, 
+      mangueraPoli12: 15.00, teeFacil12: 1.50, codoFacil12: 1.20, teeRedMicro: 2.00, rolloMicrotubo: 12.00
+    };
+
+    // ==========================================
+    // COMPONENTE: MOTOR 3D
+    // ==========================================
+    const ThreeScene = ({ largo, ancho, alto, distanciaPatas, pendienteBase, alturaCuna }) => {
+      const mountRef = useRef(null);
+      const controlsRef = useRef(null);
+
+      useEffect(() => {
+        const currentRef = mountRef.current;
+        const width = currentRef.clientWidth; const height = currentRef.clientHeight;
+
+        const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1e293b); 
+        const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
+        camera.position.set(largo * 1.2, alto * 0.8, ancho * 3);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        currentRef.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; controls.target.set(largo / 2, alto / 2, ancho / 2);
+        controlsRef.current = controls;
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8)); 
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5); dirLight.position.set(10, 20, 10); scene.add(dirLight);
+        const gridHelper = new THREE.GridHelper(Math.max(largo, alto) * 3, 30, 0x475569, 0x334155); gridHelper.position.y = -0.1; gridHelper.position.x = largo / 2; gridHelper.position.z = ancho / 2; scene.add(gridHelper);
+
+        const matTubo = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 }); 
+        const matConector = new THREE.MeshLambertMaterial({ color: 0x94a3b8 }); 
+        const matCultivo = new THREE.MeshLambertMaterial({ color: 0x3b82f6 }); 
+        const matReservorio = new THREE.MeshLambertMaterial({ color: 0xfacc15 }); 
+
+        const addCyl = (r, len, x, y, z, rZ, rX, mat) => { const geo = new THREE.CylinderGeometry(r, r, len, 16); const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x, y, z); mesh.rotation.z = rZ; mesh.rotation.x = rX; scene.add(mesh); };
+        const addJoint = (x, y, z, r) => { const geo = new THREE.SphereGeometry(r * 1.3, 16, 16); const mesh = new THREE.Mesh(geo, matConector); mesh.position.set(x, y, z); scene.add(mesh); };
+
+        const L = Number(largo) || 10; const A = Number(ancho) || 3; const H = Number(alto) || 6; const D = Number(distanciaPatas) || 5;
+        const PEND = (Number(pendienteBase) || 0) / 100;
+        const ALT_CUNA = Number(alturaCuna) || 0;
+
+        const numeroApoyos = Math.max(2, Math.ceil(L / D) + 1); const spacingX = L / (numeroApoyos - 1);
+        
+        const rEst = 0.07; const baseOffset = rEst; const brazoLargo = 4 / 12; const topeAlto = 0.15; 
+
+        for (let i = 0; i < numeroApoyos; i++) {
+          const x = i * spacingX;
+          addCyl(rEst, H, x, H/2, 0, 0, 0, matTubo); addCyl(rEst, H, x, H/2, A, 0, 0, matTubo);
+          addCyl(rEst, A, x, baseOffset, A/2, 0, Math.PI/2, matTubo); addCyl(rEst, A, x, H, A/2, 0, Math.PI/2, matTubo);
+          addJoint(x, baseOffset, 0, rEst); addJoint(x, baseOffset, A, rEst); addJoint(x, H, 0, rEst); addJoint(x, H, A, rEst);
+
+          if (i < numeroApoyos - 1) {
+            addCyl(rEst, A, x, H/2, A/2, 0, Math.PI/2, matTubo);
+            addJoint(x, H/2, 0, rEst); addJoint(x, H/2, A, rEst);
+          }
+
+          const ySoporte = ALT_CUNA + (x * PEND); 
+          const zIzq = - (brazoLargo / 2); const zDer = A + (brazoLargo / 2);
+          
+          addCyl(rEst, brazoLargo, x, ySoporte, zIzq, 0, Math.PI/2, matTubo); addCyl(rEst, brazoLargo, x, ySoporte, zDer, 0, Math.PI/2, matTubo); 
+          addJoint(x, ySoporte, 0, rEst); addJoint(x, ySoporte, A, rEst);
+          addCyl(rEst, topeAlto, x, ySoporte + (topeAlto/2), -brazoLargo, 0, 0, matTubo); addCyl(rEst, topeAlto, x, ySoporte + (topeAlto/2), A + brazoLargo, 0, 0, matTubo); 
+          addJoint(x, ySoporte, -brazoLargo, rEst); addJoint(x, ySoporte, A + brazoLargo, rEst); 
+        }
+
+        addCyl(rEst, L, L/2, baseOffset, 0, Math.PI/2, 0, matTubo); addCyl(rEst, L, L/2, baseOffset, A, Math.PI/2, 0, matTubo); addCyl(rEst, L, L/2, H, 0, Math.PI/2, 0, matTubo); addCyl(rEst, L, L/2, H, A, Math.PI/2, 0, matTubo); 
+
+        const rCultivo = 0.15; const angInclinacion = Math.atan(PEND); const cultivoYCentro = ALT_CUNA + ((L / 2) * PEND) + rEst + rCultivo; 
+        const geoCultivo = new THREE.CylinderGeometry(rCultivo, rCultivo, L + 0.66, 32);
+        const tubo1 = new THREE.Mesh(geoCultivo, matCultivo); tubo1.position.set(L / 2, cultivoYCentro, - (brazoLargo / 2)); tubo1.rotation.z = -Math.PI / 2 + angInclinacion; scene.add(tubo1);
+        const tubo2 = new THREE.Mesh(geoCultivo, matCultivo); tubo2.position.set(L / 2, cultivoYCentro, A + (brazoLargo / 2)); tubo2.rotation.z = -Math.PI / 2 + angInclinacion; scene.add(tubo2);
+
+        const geoCaja = new THREE.BoxGeometry(1.5, 1.2, 2.5); const meshCaja = new THREE.Mesh(geoCaja, matReservorio); meshCaja.position.set(0.75, 0.6, A / 2); scene.add(meshCaja);
+
+        let animId; const animate = () => { animId = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }; animate();
+        return () => { cancelAnimationFrame(animId); controls.dispose(); renderer.dispose(); if(currentRef) currentRef.innerHTML = ''; };
+      }, [largo, ancho, alto, distanciaPatas, pendienteBase, alturaCuna]); 
+
+      return <div id="threejs-canvas-container" ref={mountRef}></div>;
+    };
+
+    // ==========================================
+    // COMPONENTE: PLANO LATERAL (Vista a lo largo)
+    // ==========================================
+    const BlueprintLateral = ({ largo, alto, distanciaPatas, pendienteBase, alturaCuna }) => {
+      const scale = 55; const margin = 100;
+      const width = (largo * scale) + (margin * 2) + 100; const height = (alto * scale) + (margin * 2) + 50; 
+      
+      const getX = (pies) => margin + (pies * scale) + 50;
+      const getY = (pies) => height - margin - (pies * scale) - 50;
+
+      const numeroApoyos = Math.max(2, Math.ceil(largo / distanciaPatas) + 1);
+      const spacingX = largo / (numeroApoyos - 1);
+      
+      const PEND = (Number(pendienteBase) || 0) / 100;
+      const ALT_CUNA = Number(alturaCuna) || 0;
+      const yMedio = alto / 2;
+      
+      const drawPostes = () => {
+        let postes = [];
+        for(let i = 0; i < numeroApoyos; i++){
+          let x = i * spacingX;
+          let ySoporte = ALT_CUNA + (x * PEND);
+          let tieneVigaMedia = i < numeroApoyos - 1;
+
+          postes.push(<line key={`inf-${i}`} x1={getX(x)} y1={getY(0)} x2={getX(x)} y2={getY(ySoporte)} stroke="#334155" strokeWidth="8" strokeLinecap="square" />);
+          postes.push(<line key={`tee-cuna-${i}`} x1={getX(x)-8} y1={getY(ySoporte)} x2={getX(x)+8} y2={getY(ySoporte)} stroke="#94a3b8" strokeWidth="4" />); 
+          postes.push(
+            <g key={`txt-inf-${i}`}>
+              <rect x={getX(x) + 8} y={getY(ySoporte/2) - 10} width="40" height="18" fill="#f8fafc" fillOpacity="0.8" />
+              <text x={getX(x) + 10} y={getY(ySoporte/2) + 3} className="cota-text-small">{ySoporte.toFixed(2)}'</text>
+            </g>
+          );
+
+          if (tieneVigaMedia) {
+            let altoMedio = yMedio - ySoporte;
+            postes.push(<line key={`med-${i}`} x1={getX(x)} y1={getY(ySoporte)} x2={getX(x)} y2={getY(yMedio)} stroke="#334155" strokeWidth="8" strokeLinecap="square" />);
+            postes.push(<line key={`tee-medio-${i}`} x1={getX(x)-8} y1={getY(yMedio)} x2={getX(x)+8} y2={getY(yMedio)} stroke="#94a3b8" strokeWidth="4" />); 
+            postes.push(
+              <g key={`txt-med-${i}`}>
+                <rect x={getX(x) + 8} y={getY(ySoporte + (altoMedio/2)) - 10} width="40" height="18" fill="#f8fafc" fillOpacity="0.8" />
+                <text x={getX(x) + 10} y={getY(ySoporte + (altoMedio/2)) + 3} className="cota-text-small">{altoMedio.toFixed(2)}'</text>
+              </g>
+            );
+
+            let altoSup = alto - yMedio;
+            postes.push(<line key={`sup-${i}`} x1={getX(x)} y1={getY(yMedio)} x2={getX(x)} y2={getY(alto)} stroke="#334155" strokeWidth="8" strokeLinecap="square" />);
+            postes.push(
+              <g key={`txt-sup-${i}`}>
+                <rect x={getX(x) + 8} y={getY(yMedio + (altoSup/2)) - 10} width="40" height="18" fill="#f8fafc" fillOpacity="0.8" />
+                <text x={getX(x) + 10} y={getY(yMedio + (altoSup/2)) + 3} className="cota-text-small">{altoSup.toFixed(2)}'</text>
+              </g>
+            );
+          } else {
+            let altoSup = alto - ySoporte;
+            postes.push(<line key={`sup-${i}`} x1={getX(x)} y1={getY(ySoporte)} x2={getX(x)} y2={getY(alto)} stroke="#334155" strokeWidth="8" strokeLinecap="square" />);
+            postes.push(
+              <g key={`txt-sup-${i}`}>
+                <rect x={getX(x) + 8} y={getY(ySoporte + (altoSup/2)) - 10} width="40" height="18" fill="#f8fafc" fillOpacity="0.8" />
+                <text x={getX(x) + 10} y={getY(ySoporte + (altoSup/2)) + 3} className="cota-text-small">{altoSup.toFixed(2)}'</text>
+              </g>
+            );
+          }
+        }
+        return postes;
+      };
+
+      const drawCotasInternas = () => {
+        let cotas = [];
+        for(let i = 0; i < numeroApoyos - 1; i++){
+          let x1 = i * spacingX; let x2 = (i + 1) * spacingX; let mid = (x1 + x2) / 2;
+          cotas.push(
+            <g key={`cota-${i}`}>
+              <line x1={getX(x1)} y1={getY(-0.3)} x2={getX(x2)} y2={getY(-0.3)} className="cota-line" markerStart="url(#arrowStart)" markerEnd="url(#arrowEnd)" />
+              <rect x={getX(mid) - 40} y={getY(-0.3) - 10} width="80" height="20" fill="#f8fafc" />
+              <text x={getX(mid)} y={getY(-0.3) + 4} textAnchor="middle" className="cota-text">{spacingX.toFixed(1)}' ENTRE C.</text>
+            </g>
+          );
+        }
+        return cotas;
+      };
+
+      return (
+        <svg className="blueprint-svg" viewBox={`0 0 ${width} ${height}`}>
+          <defs>
+            <pattern id="gridPattern2" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M 25 0 L 0 0 0 25" fill="none" stroke="#e2e8f0" strokeWidth="1"/></pattern>
+            <marker id="arrowStart" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" /></marker>
+            <marker id="arrowEnd" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" /></marker>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#gridPattern2)" />
+
+          {drawPostes()}
+          
+          <line x1={getX(0)} y1={getY(0)} x2={getX(largo)} y2={getY(0)} stroke="#334155" strokeWidth="8" />
+          <line x1={getX(0)} y1={getY(alto)} x2={getX(largo)} y2={getY(alto)} stroke="#334155" strokeWidth="8" />
+          
+          <line x1={getX(-0.33)} y1={getY(ALT_CUNA)} x2={getX(largo + 0.33)} y2={getY(ALT_CUNA + (largo * PEND))} stroke="#0ea5e9" strokeWidth="18" strokeLinecap="round"/>
+
+          {drawCotasInternas()}
+          <line x1={getX(0)} y1={getY(alto + 0.5)} x2={getX(largo)} y2={getY(alto + 0.5)} className="cota-line" markerStart="url(#arrowStart)" markerEnd="url(#arrowEnd)" />
+          <rect x={getX(largo/2) - 60} y={getY(alto + 0.5) - 10} width="120" height="20" fill="#f8fafc" />
+          <text x={getX(largo/2)} y={getY(alto + 0.5) + 4} textAnchor="middle" className="cota-text">LONGITUD TOTAL: {largo}'</text>
+        </svg>
+      );
+    };
+
+    // ==========================================
+    // COMPONENTE: PLANO FRONTAL (Vista a lo ancho)
+    // ==========================================
+    const BlueprintFrontal = ({ ancho, alto, alturaCuna }) => {
+      const scale = 55; const margin = 100; const width = (ancho * scale) + (margin * 2) + 120; const height = (alto * scale) + (margin * 2);
+      const getX = (pies) => margin + (pies * scale) + 60; const getY = (pies) => height - margin - (pies * scale); 
+      const brazoPies = 4 / 12; 
+      const H_CUNA = Number(alturaCuna);
+
+      return (
+        <svg className="blueprint-svg" viewBox={`0 0 ${width} ${height}`}>
+          <defs>
+            <pattern id="gridPattern" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M 25 0 L 0 0 0 25" fill="none" stroke="#e2e8f0" strokeWidth="1"/></pattern>
+            <marker id="arrowStart" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" /></marker>
+            <marker id="arrowEnd" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" /></marker>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#gridPattern)" />
+          
+          <line x1={getX(0)} y1={getY(0)} x2={getX(0)} y2={getY(alto)} stroke="#334155" strokeWidth="8" strokeLinecap="square" />
+          <line x1={getX(ancho)} y1={getY(0)} x2={getX(ancho)} y2={getY(alto)} stroke="#334155" strokeWidth="8" strokeLinecap="square" />
+          
+          <line x1={getX(0)} y1={getY(0)} x2={getX(ancho)} y2={getY(0)} stroke="#334155" strokeWidth="8" />
+          <line x1={getX(0)} y1={getY(alto/2)} x2={getX(ancho)} y2={getY(alto/2)} stroke="#334155" strokeWidth="8" />
+          <line x1={getX(0)} y1={getY(alto)} x2={getX(ancho)} y2={getY(alto)} stroke="#334155" strokeWidth="8" />
+          
+          <line x1={getX(-brazoPies)} y1={getY(H_CUNA)} x2={getX(0)} y2={getY(H_CUNA)} stroke="#334155" strokeWidth="8" />
+          <line x1={getX(ancho)} y1={getY(H_CUNA)} x2={getX(ancho + brazoPies)} y2={getY(H_CUNA)} stroke="#334155" strokeWidth="8" />
+          
+          <line x1={getX(-brazoPies)} y1={getY(H_CUNA)} x2={getX(-brazoPies)} y2={getY(H_CUNA + 0.15)} stroke="#334155" strokeWidth="8" />
+          <line x1={getX(ancho + brazoPies)} y1={getY(H_CUNA)} x2={getX(ancho + brazoPies)} y2={getY(H_CUNA + 0.15)} stroke="#334155" strokeWidth="8" />
+
+          <circle cx={getX(-brazoPies/2)} cy={getY(H_CUNA + 0.15)} r={0.15 * scale} fill="#0ea5e9" stroke="#0284c7" strokeWidth="3" />
+          <circle cx={getX(ancho + brazoPies/2)} cy={getY(H_CUNA + 0.15)} r={0.15 * scale} fill="#0ea5e9" stroke="#0284c7" strokeWidth="3" />
+
+          <line x1={getX(0)} y1={getY(-0.5)} x2={getX(ancho)} y2={getY(-0.5)} className="cota-line" markerStart="url(#arrowStart)" markerEnd="url(#arrowEnd)" />
+          <rect x={getX(ancho/2) - 40} y={getY(-0.5) - 10} width="80" height="20" fill="#f8fafc" />
+          <text x={getX(ancho/2)} y={getY(-0.5) + 4} textAnchor="middle" className="cota-text">{ancho}' (PIES)</text>
+
+          <line x1={getX(-1.5)} y1={getY(0)} x2={getX(-1.5)} y2={getY(alto)} className="cota-line" markerStart="url(#arrowStart)" markerEnd="url(#arrowEnd)" />
+          <rect x={getX(-1.5) - 10} y={getY(alto/2) - 30} width="20" height="60" fill="#f8fafc" />
+          <text x={getX(-1.5)} y={getY(alto/2)} textAnchor="middle" transform={`rotate(-90 ${getX(-1.5)} ${getY(alto/2)})`} className="cota-text">{alto}' (PIES)</text>
+        </svg>
+      );
+    };
+
+    // ==========================================
+    // COMPONENTE: EDITOR DE PROYECTO
+    // ==========================================
+    function Editor({ proyectoInicial, onGuardar, onVolver, onEliminar }) {
+      const [nombre, setNombre] = useState(() => proyectoInicial?.nombre || 'Nuevo Banco NFT');
+      const [largoPies, setLargoPies] = useState(() => proyectoInicial?.largo || 10);
+      const [anchoPies, setAnchoPies] = useState(() => proyectoInicial?.ancho || 3);
+      const [altoPies, setAltoPies] = useState(() => proyectoInicial?.alto || 6);
+      const [distanciaPatas, setDistanciaPatas] = useState(() => proyectoInicial?.distanciaPatas || 5);
+      
+      const [pendiente, setPendiente] = useState(() => proyectoInicial?.pendiente || 2); 
+      const [altoSoporteBase, setAltoSoporteBase] = useState(() => proyectoInicial?.altoSoporteBase || 1.5); 
+      
+      const [vistaActiva, setVistaActiva] = useState('LATERAL'); 
+      const [precios, setPrecios] = useState(() => {
+        if (proyectoInicial && proyectoInicial.precios) return JSON.parse(JSON.stringify(proyectoInicial.precios));
+        return { ...PRECIOS_BASE };
+      });
+
+      const L = Number(largoPies) || 0; const A = Number(anchoPies) || 0;
+      const H = Number(altoPies) || 0; const D = Number(distanciaPatas) || 1;
+      const PEND = (Number(pendiente) || 0) / 100;
+      const ALT_CUNA = Number(altoSoporteBase) || 0;
+
+      const numeroApoyos = Math.max(2, Math.ceil(L / D) + 1); 
+      const spacingX = L / (numeroApoyos - 1);
+      const cantidadLargueros = 4;
+      const cantidadTravesaños = (numeroApoyos * 2) + (numeroApoyos - 1); 
+      const cantidadBrazos = numeroApoyos * 2;
+      const yMedio = H / 2;
+
+      const cortesVerticales = [];
+      for(let i=0; i < numeroApoyos; i++) {
+         let x = i * spacingX;
+         let corteInf = ALT_CUNA + (x * PEND);
+         if (i < numeroApoyos - 1) {
+            let corteMed = yMedio - corteInf; let corteSup = H - yMedio;
+            cortesVerticales.push({ soporteNum: i + 1, inferior: corteInf.toFixed(2), medio: corteMed.toFixed(2), superior: corteSup.toFixed(2) });
+         } else {
+            let corteSup = H - corteInf;
+            cortesVerticales.push({ soporteNum: i + 1, inferior: corteInf.toFixed(2), medio: "N/A", superior: corteSup.toFixed(2) });
+         }
+      }
+
+      const apoyosInternos = Math.max(0, numeroApoyos - 2);
+      const longitudTotalPVC = (cantidadLargueros * L) + (numeroApoyos * ((2 * H) + (2 * A))) + ((numeroApoyos - 1) * A) + (cantidadBrazos * (4/12));
+      const tubosComercialesPVC = Math.ceil(longitudTotalPVC / 10);
+
+      const materiales = [
+        { id: 'tuboEstructural10ft', nombre: 'Tubo PVC Estructural 1.5" (10 pies)', cant: tubosComercialesPVC },
+        { id: 'esquinero3Vias', nombre: 'Codo Esquinero 3 Vías (1.5")', cant: 8 },
+        { id: 'tee4Vias', nombre: 'Tee de 4 Vías (1.5") (Soporte central)', cant: apoyosInternos * 4 },
+        { id: 'teeRegular', nombre: 'Tee Regular (1.5") (Travesaños y Brazos)', cant: (numeroApoyos * 2) + ((numeroApoyos - 1) * 2) },
+        { id: 'tuboCultivo3', nombre: 'Tubo PVC 3" (Canales de Cultivo)', cant: 2 },
+        { id: 'tapon3', nombre: 'Tapón PVC 3" (Entrada)', cant: 2 },
+        { id: 'codo3', nombre: 'Codo PVC 3" (Drenaje)', cant: 2 },
+        { id: 'bushing3a34', nombre: 'Bushing Reductor 3" a 3/4"', cant: 2 },
+        { id: 'tee34', nombre: 'Tee PVC 3/4" (Bifurcación drenaje)', cant: 2 },
+        { id: 'llavePaso34', nombre: 'Llave de paso 3/4" (Drenaje inferior)', cant: 2 },
+        { id: 'codo34', nombre: 'Codo PVC 3/4" (Retorno a tanque)', cant: 4 }, 
+        { id: 'mallaCanagrow', nombre: "Malla Canagrow 6' x 30'", cant: 1 },
+        { id: 'cajaHDX', nombre: 'Reservorio: Caja HDX Home Depot 27 Gal', cant: 1 },
+        { id: 'bombaAgua', nombre: 'Bomba de agua sumergible', cant: 1 },
+        { id: 'mangueraPoli12', nombre: 'Rollo Manguera Polietileno 1/2" (Línea Azul)', cant: 1 },
+        { id: 'teeFacil12', nombre: 'Tee Fácil Ensamble 1/2"', cant: 1 },
+        { id: 'codoFacil12', nombre: 'Codo Fácil Ensamble 1/2"', cant: 3 },
+        { id: 'teeRedMicro', nombre: 'Tee 1/2" reducida a Microtubo (c/ Tapón Flush)', cant: 2 },
+        { id: 'rolloMicrotubo', nombre: 'Rollo Micro-tubo (Riego)', cant: 1 }
+      ];
+
+      let totalProyecto = 0;
+      const listaConPrecios = materiales.map(item => {
+        const precio = Number(precios[item.id]) || 0;
+        const subtotal = item.cant * precio;
+        totalProyecto += subtotal;
+        return { ...item, precio, subtotal };
+      });
+
+      const handlePrecioChange = (id, val) => setPrecios(prev => ({ ...prev, [id]: parseFloat(val) || 0 }));
+
+      const handleSave = () => {
+        onGuardar({
+          id: proyectoInicial?.id || Date.now().toString(),
+          nombre, largo: L, ancho: A, alto: H, distanciaPatas: D, 
+          pendiente: pendiente, altoSoporteBase: altoSoporteBase,
+          precios, fecha: new Date().toLocaleDateString()
+        });
+      };
+
+      return (
+        <div className="card">
+          <div className="editor-header">
+            <div className="input-name-container">
+              <label>Proyecto:</label>
+              <input type="text" className="input-name" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre del proyecto..." />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {proyectoInicial && (
+                <button className="btn-danger" onClick={() => onEliminar(proyectoInicial.id)}>🗑️ Borrar</button>
+              )}
+              <button className="btn-secondary" onClick={onVolver}>← Volver</button>
+              <button className="btn-primary" onClick={handleSave}>💾 Guardar Proyecto</button>
+            </div>
+          </div>
+
+          <div className="grid-inputs">
+            <div className="input-group">
+              <label>Largo (Pies)</label>
+              <input type="number" value={largoPies} onChange={e => setLargoPies(e.target.value)} />
+            </div>
+            <div className="input-group">
+              <label>Ancho (Pies)</label>
+              <input type="number" value={anchoPies} onChange={e => setAnchoPies(e.target.value)} />
+            </div>
+            <div className="input-group">
+              <label>Alto (Pies)</label>
+              <input type="number" value={altoPies} onChange={e => setAltoPies(e.target.value)} />
+            </div>
+            <div className="input-group">
+              <label>Dist. Soportes (Pies)</label>
+              <input type="number" value={distanciaPatas} onChange={e => setDistanciaPatas(e.target.value)} />
+            </div>
+            <div className="input-group">
+              <label>Altura Cuna Inicial (Pies)</label>
+              <input type="number" step="0.1" value={altoSoporteBase} onChange={e => setAltoSoporteBase(e.target.value)} />
+            </div>
+            <div className="input-group">
+              <label>Pendiente (%)</label>
+              <input type="number" step="0.5" value={pendiente} onChange={e => setPendiente(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="view-controls">
+            <button className={`btn-view ${vistaActiva === '3D' ? 'active' : ''}`} onClick={() => setVistaActiva('3D')}>Visor 3D</button>
+            <button className={`btn-view ${vistaActiva === 'LATERAL' ? 'active' : ''}`} onClick={() => setVistaActiva('LATERAL')}>Plano Lateral (Despiece)</button>
+            <button className={`btn-view ${vistaActiva === 'FRONTAL' ? 'active' : ''}`} onClick={() => setVistaActiva('FRONTAL')}>Plano Frontal (Cabezales)</button>
+          </div>
+
+          <div className="canvas-container">
+            {vistaActiva === '3D' && <ThreeScene largo={L} ancho={A} alto={H} distanciaPatas={D} pendienteBase={pendiente} alturaCuna={altoSoporteBase} />}
+            {vistaActiva === 'LATERAL' && <BlueprintLateral largo={L} alto={H} distanciaPatas={D} pendienteBase={pendiente} alturaCuna={altoSoporteBase} />}
+            {vistaActiva === 'FRONTAL' && <BlueprintFrontal ancho={A} alto={H} alturaCuna={altoSoporteBase} />}
+          </div>
+
+          <div className="table-container">
+            <h3>1. Hoja de Cortes Exactos</h3>
+            <table className="table-cortes">
+              <thead>
+                <tr>
+                  <th>Pieza de 1.5"</th>
+                  <th>Tramo Inferior (Piso a Cuna)</th>
+                  <th>Tramo Medio (Cuna a Viga)</th>
+                  <th>Tramo Superior (Viga a Techo)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cortesVerticales.map((corte, idx) => (
+                  <tr key={`cortes-${idx}`}>
+                    <td><strong>Postes Soporte {corte.soporteNum}</strong> (2 uds)</td>
+                    <td><span style={{color: '#0369a1', fontWeight:'bold'}}>{corte.inferior}'</span></td>
+                    <td><span style={{color: '#0369a1', fontWeight:'bold'}}>{corte.medio}{corte.medio !== 'N/A' ? "'" : ""}</span></td>
+                    <td><span style={{color: '#0369a1', fontWeight:'bold'}}>{corte.superior}'</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <table className="table-cortes" style={{marginTop: '10px'}}>
+              <thead><tr><th>Tipo de Tubo</th><th>Longitud Exacta</th><th>Cantidad</th></tr></thead>
+              <tbody>
+                <tr><td>Tubo PVC 3" (Canal)</td><td>{L} pies + 8 pulgadas</td><td>2 piezas</td></tr>
+                <tr><td>Largueros (1.5")</td><td>{L} pies</td><td>{cantidadLargueros} piezas</td></tr>
+                <tr><td>Travesaños (1.5")</td><td>{A} pies</td><td>{cantidadTravesaños} piezas</td></tr>
+                <tr><td>Brazos Cuna (1.5")</td><td>4 pulgadas</td><td>{cantidadBrazos} piezas</td></tr>
+              </tbody>
+            </table>
+
+            <h3>2. Presupuesto de Materiales</h3>
+            <table>
+              <thead><tr><th>Pieza</th><th>Cant.</th><th>Precio Unit. ($)</th><th>Subtotal ($)</th></tr></thead>
+              <tbody>
+                {listaConPrecios.filter(item => item.cant > 0).map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.nombre}</td>
+                    <td><strong>{item.cant}</strong></td>
+                    <td><input type="number" step="0.01" value={item.precio} onChange={(e) => handlePrecioChange(item.id, e.target.value)} style={{ width: '80px', padding: '4px 6px' }} /></td>
+                    <td>${item.subtotal.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="total-box">Costo Total: ${totalProyecto.toFixed(2)}</div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // APP PRINCIPAL (ENRUTADOR)
+    // ==========================================
+    function App() {
+      const [pantalla, setPantalla] = useState('DASHBOARD'); 
+      const [proyectoActual, setProyectoActual] = useState(null);
+      
+      const [proyectos, setProyectos] = useState(() => {
+        const guardados = localStorage.getItem('nft_assembler_proyectos');
+        return guardados ? JSON.parse(guardados) : [];
+      });
+
+      useEffect(() => {
+        localStorage.setItem('nft_assembler_proyectos', JSON.stringify(proyectos));
+      }, [proyectos]);
+
+      const handleNuevo = () => {
+        setProyectoActual(null);
+        setPantalla('EDITOR');
+      };
+
+      const handleAbrir = (proyecto) => {
+        setProyectoActual(proyecto);
+        setPantalla('EDITOR');
+      };
+
+      const handleGuardar = (proyectoModificado) => {
+        setProyectos(prev => {
+          const existe = prev.findIndex(p => p.id === proyectoModificado.id);
+          if (existe >= 0) {
+            const copia = [...prev];
+            copia[existe] = proyectoModificado;
+            return copia;
+          } else {
+            return [...prev, proyectoModificado];
+          }
+        });
+        setPantalla('DASHBOARD');
+      };
+
+      const handleEliminarGlobal = (id) => {
+        if(window.confirm("¿Seguro que deseas borrar este proyecto de forma permanente?")) {
+          setProyectos(prev => prev.filter(p => p.id !== id));
+          setPantalla('DASHBOARD');
+        }
+      };
+
+      const handleEliminarDesdeDashboard = (id, e) => {
+        e.stopPropagation(); 
+        handleEliminarGlobal(id);
+      };
+
+      if (pantalla === 'EDITOR') {
+        return (
+          <div className="container">
+            <Editor 
+              proyectoInicial={proyectoActual} 
+              onGuardar={handleGuardar} 
+              onVolver={() => setPantalla('DASHBOARD')} 
+              onEliminar={handleEliminarGlobal}
+            />
+          </div>
+        );
+      }
+
+      return (
+        <div className="container">
+          <div className="dashboard-header">
+            <div>
+              <h1>NFT-Assembler - Mis Proyectos</h1>
+              <p style={{color: '#64748b'}}>Gestiona tus diseños de bancos hidropónicos</p>
+            </div>
+            <button className="btn-primary" onClick={handleNuevo}>+ Nuevo Proyecto</button>
+          </div>
+
+          {proyectos.length === 0 ? (
+            <div className="empty-state">
+              <h2>No tienes proyectos guardados</h2>
+              <p>Haz clic en "Nuevo Proyecto" para empezar a diseñar tu primer banco.</p>
+            </div>
+          ) : (
+            <div className="dashboard-grid">
+              {proyectos.map(p => (
+                <div key={p.id} className="project-card" onClick={() => handleAbrir(p)}>
+                  <button className="btn-delete" onClick={(e) => handleEliminarDesdeDashboard(p.id, e)}>Borrar</button>
+                  <h3>{p.nombre}</h3>
+                  <p><strong>Dimensiones:</strong> {p.largo}'L x {p.ancho}'A x {p.alto}'H</p>
+                  <p><strong>Actualizado:</strong> {p.fecha}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registrado con éxito:', registration.scope);
+          })
+          .catch(error => {
+            console.log('Fallo al registrar ServiceWorker:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
