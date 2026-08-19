@@ -11,7 +11,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="NFT-Assembler">
-  <!-- Icono genérico (asegúrate de tener un icon-192.png en la carpeta) -->
   <link rel="apple-touch-icon" href="icon-192.png">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -84,9 +83,10 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
+    // AÑADIDO: codo90_15 para las puntas de las cunas
     const PRECIOS_BASE = {
       tuboEstructural10ft: 8.50, esquinero3Vias: 2.50, tee4Vias: 3.20,
-      teeRegular: 1.20, tuboCultivo3: 25.00, tapon3: 4.00, codo3: 3.50,
+      teeRegular: 1.20, codo90_15: 1.50, tuboCultivo3: 25.00, tapon3: 4.00, codo3: 3.50,
       bushing3a34: 2.80, tee34: 1.50, llavePaso34: 5.50, codo34: 0.90,
       mallaCanagrow: 18.99, cajaHDX: 14.98, bombaAgua: 19.50, 
       mangueraPoli12: 15.00, teeFacil12: 1.50, codoFacil12: 1.20, teeRedMicro: 2.00, rolloMicrotubo: 12.00
@@ -172,7 +172,7 @@
     };
 
     // ==========================================
-    // COMPONENTE: PLANO LATERAL (Vista a lo largo)
+    // COMPONENTE: PLANO LATERAL (Vista Longitudinal)
     // ==========================================
     const BlueprintLateral = ({ largo, alto, distanciaPatas, pendienteBase, alturaCuna }) => {
       const scale = 55; const margin = 100;
@@ -277,7 +277,7 @@
     };
 
     // ==========================================
-    // COMPONENTE: PLANO FRONTAL (Vista a lo ancho)
+    // COMPONENTE: PLANO FRONTAL (Vista Transversal)
     // ==========================================
     const BlueprintFrontal = ({ ancho, alto, alturaCuna }) => {
       const scale = 55; const margin = 100; const width = (ancho * scale) + (margin * 2) + 120; const height = (alto * scale) + (margin * 2);
@@ -336,7 +336,8 @@
       
       const [vistaActiva, setVistaActiva] = useState('LATERAL'); 
       const [precios, setPrecios] = useState(() => {
-        if (proyectoInicial && proyectoInicial.precios) return JSON.parse(JSON.stringify(proyectoInicial.precios));
+        // Mezclamos los precios guardados con los base para asegurar que las piezas nuevas (como el Codo de la cuna) existan
+        if (proyectoInicial && proyectoInicial.precios) return { ...PRECIOS_BASE, ...proyectoInicial.precios };
         return { ...PRECIOS_BASE };
       });
 
@@ -352,6 +353,7 @@
       const cantidadBrazos = numeroApoyos * 2;
       const yMedio = H / 2;
 
+      // CÁLCULO DE CORTES
       const cortesVerticales = [];
       for(let i=0; i < numeroApoyos; i++) {
          let x = i * spacingX;
@@ -365,8 +367,12 @@
          }
       }
 
+      // CORRECCIÓN MATEMÁTICA: Los largueros se cortan en tramos, no atraviesan la Tee
+      const tramosLongitudinalesCant = (numeroApoyos - 1) * 4;
       const apoyosInternos = Math.max(0, numeroApoyos - 2);
-      const longitudTotalPVC = (cantidadLargueros * L) + (numeroApoyos * ((2 * H) + (2 * A))) + ((numeroApoyos - 1) * A) + (cantidadBrazos * (4/12));
+      
+      // Cálculo PVC sumando los topes
+      const longitudTotalPVC = (tramosLongitudinalesCant * spacingX) + (numeroApoyos * ((2 * H) + (2 * A))) + ((numeroApoyos - 1) * A) + (cantidadBrazos * (4/12)) + (cantidadBrazos * (2/12));
       const tubosComercialesPVC = Math.ceil(longitudTotalPVC / 10);
 
       const materiales = [
@@ -374,6 +380,7 @@
         { id: 'esquinero3Vias', nombre: 'Codo Esquinero 3 Vías (1.5")', cant: 8 },
         { id: 'tee4Vias', nombre: 'Tee de 4 Vías (1.5") (Soporte central)', cant: apoyosInternos * 4 },
         { id: 'teeRegular', nombre: 'Tee Regular (1.5") (Travesaños y Brazos)', cant: (numeroApoyos * 2) + ((numeroApoyos - 1) * 2) },
+        { id: 'codo90_15', nombre: 'Codo 90° PVC (1.5") (Topes de cuna)', cant: cantidadBrazos },
         { id: 'tuboCultivo3', nombre: 'Tubo PVC 3" (Canales de Cultivo)', cant: 2 },
         { id: 'tapon3', nombre: 'Tapón PVC 3" (Entrada)', cant: 2 },
         { id: 'codo3', nombre: 'Codo PVC 3" (Drenaje)', cant: 2 },
@@ -491,9 +498,10 @@
               <thead><tr><th>Tipo de Tubo</th><th>Longitud Exacta</th><th>Cantidad</th></tr></thead>
               <tbody>
                 <tr><td>Tubo PVC 3" (Canal)</td><td>{L} pies + 8 pulgadas</td><td>2 piezas</td></tr>
-                <tr><td>Largueros (1.5")</td><td>{L} pies</td><td>{cantidadLargueros} piezas</td></tr>
+                <tr><td>Tramos Longitudinales (1.5")</td><td>{spacingX.toFixed(2)} pies</td><td>{tramosLongitudinalesCant} piezas</td></tr>
                 <tr><td>Travesaños (1.5")</td><td>{A} pies</td><td>{cantidadTravesaños} piezas</td></tr>
                 <tr><td>Brazos Cuna (1.5")</td><td>4 pulgadas</td><td>{cantidadBrazos} piezas</td></tr>
+                <tr><td>Topes de Cuna (1.5")</td><td>2 pulgadas</td><td>{cantidadBrazos} piezas</td></tr>
               </tbody>
             </table>
 
@@ -526,12 +534,12 @@
       const [proyectoActual, setProyectoActual] = useState(null);
       
       const [proyectos, setProyectos] = useState(() => {
-        const guardados = localStorage.getItem('nft_assembler_proyectos');
+        const guardados = localStorage.getItem('nft_assembler_proyectos_v3');
         return guardados ? JSON.parse(guardados) : [];
       });
 
       useEffect(() => {
-        localStorage.setItem('nft_assembler_proyectos', JSON.stringify(proyectos));
+        localStorage.setItem('nft_assembler_proyectos_v3', JSON.stringify(proyectos));
       }, [proyectos]);
 
       const handleNuevo = () => {
