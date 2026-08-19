@@ -13,6 +13,8 @@
   <meta name="apple-mobile-web-app-title" content="NFT-Assembler">
   <link rel="apple-touch-icon" href="icon-192.png">
   
+  <!-- Supabase, Three.js, React -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -36,6 +38,7 @@
     .btn-delete { position: absolute; top: 15px; right: 15px; background: #fee2e2; color: #ef4444; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: bold; transition: background 0.2s; }
     .btn-delete:hover { background: #ef4444; color: white; }
     .empty-state { text-align: center; padding: 50px 20px; color: #94a3b8; background: white; border-radius: 8px; border: 2px dashed #cbd5e1; }
+    .loading-state { text-align: center; padding: 50px 20px; color: #0ea5e9; font-weight: bold; font-size: 18px; }
     
     .editor-header { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;}
     .input-name-container { display: flex; align-items: center; gap: 10px; flex-grow: 1; }
@@ -65,7 +68,7 @@
     td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
     .table-cortes th { background: #e0f2fe; color: #0369a1; border-bottom: 2px solid #bae6fd; }
     .table-cortes td { font-size: 14px; font-family: monospace; }
-    .total-box { text-align: right; margin-top: 15px; font-size: 22px; font-weight: 800; color: #047857; background: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #10b981; }
+    .total-box { text-align: right; margin-top: 15px; font-size: 24px; font-weight: 800; color: #047857; background: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #10b981; }
     
     .canvas-container { width: 100%; height: 60vh; min-height: 400px; border-radius: 8px; border: 1px solid #cbd5e1; overflow: hidden; background: #fff;}
     #threejs-canvas-container { width: 100%; height: 100%; background-color: #1e293b; cursor: grab; }
@@ -83,7 +86,16 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // AÑADIDO: codo90_15 para las puntas de las cunas
+    // ==========================================
+    // CONFIGURACIÓN DE SUPABASE
+    // ==========================================
+    // NOTA: REEMPLAZA ESTAS DOS LÍNEAS CON TUS CLAVES DE SUPABASE
+    const SUPABASE_URL = 'https://qelvwsttfcswsaekihkj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlbHZ3c3R0ZmNzd3NhZWtpaGtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNjE5NjEsImV4cCI6MjEwMjczNzk2MX0.518vtnRFt_dg4foDICq0EALaNM_0Yzo4a3V4wjrUzw0';
+    
+    // Inicializar cliente
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const PRECIOS_BASE = {
       tuboEstructural10ft: 8.50, esquinero3Vias: 2.50, tee4Vias: 3.20,
       teeRegular: 1.20, codo90_15: 1.50, tuboCultivo3: 25.00, tapon3: 4.00, codo3: 3.50,
@@ -172,7 +184,7 @@
     };
 
     // ==========================================
-    // COMPONENTE: PLANO LATERAL (Vista Longitudinal)
+    // COMPONENTE: PLANO LATERAL (Vista a lo largo)
     // ==========================================
     const BlueprintLateral = ({ largo, alto, distanciaPatas, pendienteBase, alturaCuna }) => {
       const scale = 55; const margin = 100;
@@ -277,7 +289,7 @@
     };
 
     // ==========================================
-    // COMPONENTE: PLANO FRONTAL (Vista Transversal)
+    // COMPONENTE: PLANO FRONTAL (Vista a lo ancho)
     // ==========================================
     const BlueprintFrontal = ({ ancho, alto, alturaCuna }) => {
       const scale = 55; const margin = 100; const width = (ancho * scale) + (margin * 2) + 120; const height = (alto * scale) + (margin * 2);
@@ -330,13 +342,11 @@
       const [anchoPies, setAnchoPies] = useState(() => proyectoInicial?.ancho || 3);
       const [altoPies, setAltoPies] = useState(() => proyectoInicial?.alto || 6);
       const [distanciaPatas, setDistanciaPatas] = useState(() => proyectoInicial?.distanciaPatas || 5);
-      
       const [pendiente, setPendiente] = useState(() => proyectoInicial?.pendiente || 2); 
       const [altoSoporteBase, setAltoSoporteBase] = useState(() => proyectoInicial?.altoSoporteBase || 1.5); 
       
       const [vistaActiva, setVistaActiva] = useState('LATERAL'); 
       const [precios, setPrecios] = useState(() => {
-        // Mezclamos los precios guardados con los base para asegurar que las piezas nuevas (como el Codo de la cuna) existan
         if (proyectoInicial && proyectoInicial.precios) return { ...PRECIOS_BASE, ...proyectoInicial.precios };
         return { ...PRECIOS_BASE };
       });
@@ -348,12 +358,11 @@
 
       const numeroApoyos = Math.max(2, Math.ceil(L / D) + 1); 
       const spacingX = L / (numeroApoyos - 1);
-      const cantidadLargueros = 4;
+      const tramosLongitudinalesCant = (numeroApoyos - 1) * 4; // CORRECCIÓN 1: Largueros seccionados
       const cantidadTravesaños = (numeroApoyos * 2) + (numeroApoyos - 1); 
       const cantidadBrazos = numeroApoyos * 2;
       const yMedio = H / 2;
 
-      // CÁLCULO DE CORTES
       const cortesVerticales = [];
       for(let i=0; i < numeroApoyos; i++) {
          let x = i * spacingX;
@@ -367,11 +376,8 @@
          }
       }
 
-      // CORRECCIÓN MATEMÁTICA: Los largueros se cortan en tramos, no atraviesan la Tee
-      const tramosLongitudinalesCant = (numeroApoyos - 1) * 4;
       const apoyosInternos = Math.max(0, numeroApoyos - 2);
-      
-      // Cálculo PVC sumando los topes
+      // CORRECCIÓN 3: Sumamos los pequeños topes de 2 pulgadas al cálculo total de PVC
       const longitudTotalPVC = (tramosLongitudinalesCant * spacingX) + (numeroApoyos * ((2 * H) + (2 * A))) + ((numeroApoyos - 1) * A) + (cantidadBrazos * (4/12)) + (cantidadBrazos * (2/12));
       const tubosComercialesPVC = Math.ceil(longitudTotalPVC / 10);
 
@@ -380,7 +386,7 @@
         { id: 'esquinero3Vias', nombre: 'Codo Esquinero 3 Vías (1.5")', cant: 8 },
         { id: 'tee4Vias', nombre: 'Tee de 4 Vías (1.5") (Soporte central)', cant: apoyosInternos * 4 },
         { id: 'teeRegular', nombre: 'Tee Regular (1.5") (Travesaños y Brazos)', cant: (numeroApoyos * 2) + ((numeroApoyos - 1) * 2) },
-        { id: 'codo90_15', nombre: 'Codo 90° PVC (1.5") (Topes de cuna)', cant: cantidadBrazos },
+        { id: 'codo90_15', nombre: 'Codo 90° PVC (1.5") (Topes de cuna)', cant: cantidadBrazos }, // CORRECCIÓN 2
         { id: 'tuboCultivo3', nombre: 'Tubo PVC 3" (Canales de Cultivo)', cant: 2 },
         { id: 'tapon3', nombre: 'Tapón PVC 3" (Entrada)', cant: 2 },
         { id: 'codo3', nombre: 'Codo PVC 3" (Drenaje)', cant: 2 },
@@ -527,20 +533,43 @@
     }
 
     // ==========================================
-    // APP PRINCIPAL (ENRUTADOR)
+    // APP PRINCIPAL CON CONEXIÓN SUPABASE
     // ==========================================
     function App() {
       const [pantalla, setPantalla] = useState('DASHBOARD'); 
       const [proyectoActual, setProyectoActual] = useState(null);
-      
-      const [proyectos, setProyectos] = useState(() => {
-        const guardados = localStorage.getItem('nft_assembler_proyectos_v3');
-        return guardados ? JSON.parse(guardados) : [];
-      });
+      const [proyectos, setProyectos] = useState([]);
+      const [cargando, setCargando] = useState(true);
 
       useEffect(() => {
-        localStorage.setItem('nft_assembler_proyectos_v3', JSON.stringify(proyectos));
-      }, [proyectos]);
+        if (!SUPABASE_URL || SUPABASE_URL === 'TU_URL_DE_SUPABASE') {
+          console.warn("ADVERTENCIA: No has configurado Supabase. Funcionando en modo LocalStorage temporal.");
+          const guardados = localStorage.getItem('nft_assembler_proyectos_sb');
+          if(guardados) setProyectos(JSON.parse(guardados));
+          setCargando(false);
+          return;
+        }
+
+        fetchProyectos();
+
+        const channel = supabase.channel('cambios_db')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'bancos_nft' }, () => {
+            fetchProyectos(); 
+          })
+          .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+      }, []);
+
+      const fetchProyectos = async () => {
+        const { data, error } = await supabase.from('bancos_nft').select('*').order('fecha', { ascending: false });
+        if (error) {
+          console.error("Error cargando proyectos:", error);
+        } else {
+          setProyectos(data || []);
+        }
+        setCargando(false);
+      };
 
       const handleNuevo = () => {
         setProyectoActual(null);
@@ -552,24 +581,48 @@
         setPantalla('EDITOR');
       };
 
-      const handleGuardar = (proyectoModificado) => {
-        setProyectos(prev => {
-          const existe = prev.findIndex(p => p.id === proyectoModificado.id);
-          if (existe >= 0) {
-            const copia = [...prev];
-            copia[existe] = proyectoModificado;
-            return copia;
-          } else {
-            return [...prev, proyectoModificado];
-          }
-        });
-        setPantalla('DASHBOARD');
+      const handleGuardar = async (proyectoModificado) => {
+        if (!SUPABASE_URL || SUPABASE_URL === 'TU_URL_DE_SUPABASE') {
+            // Guardado Local Fallback
+            setProyectos(prev => {
+              const existe = prev.findIndex(p => p.id === proyectoModificado.id);
+              const nuevaLista = existe >= 0 ? [...prev.slice(0, existe), proyectoModificado, ...prev.slice(existe + 1)] : [...prev, proyectoModificado];
+              localStorage.setItem('nft_assembler_proyectos_sb', JSON.stringify(nuevaLista));
+              return nuevaLista;
+            });
+            setPantalla('DASHBOARD');
+            return;
+        }
+
+        // Guardado Supabase Real
+        const { error } = await supabase.from('bancos_nft').upsert([proyectoModificado]);
+        if (error) {
+           alert("Error al guardar en la nube: " + error.message);
+        } else {
+           setPantalla('DASHBOARD');
+           fetchProyectos();
+        }
       };
 
-      const handleEliminarGlobal = (id) => {
+      const handleEliminarGlobal = async (id) => {
         if(window.confirm("¿Seguro que deseas borrar este proyecto de forma permanente?")) {
-          setProyectos(prev => prev.filter(p => p.id !== id));
-          setPantalla('DASHBOARD');
+          if (!SUPABASE_URL || SUPABASE_URL === 'TU_URL_DE_SUPABASE') {
+              setProyectos(prev => {
+                const nuevaLista = prev.filter(p => p.id !== id);
+                localStorage.setItem('nft_assembler_proyectos_sb', JSON.stringify(nuevaLista));
+                return nuevaLista;
+              });
+              setPantalla('DASHBOARD');
+              return;
+          }
+
+          const { error } = await supabase.from('bancos_nft').delete().eq('id', id);
+          if (error) {
+             alert("Error al borrar en la nube: " + error.message);
+          } else {
+             setPantalla('DASHBOARD');
+             fetchProyectos();
+          }
         }
       };
 
@@ -581,12 +634,7 @@
       if (pantalla === 'EDITOR') {
         return (
           <div className="container">
-            <Editor 
-              proyectoInicial={proyectoActual} 
-              onGuardar={handleGuardar} 
-              onVolver={() => setPantalla('DASHBOARD')} 
-              onEliminar={handleEliminarGlobal}
-            />
+            <Editor proyectoInicial={proyectoActual} onGuardar={handleGuardar} onVolver={() => setPantalla('DASHBOARD')} onEliminar={handleEliminarGlobal} />
           </div>
         );
       }
@@ -595,13 +643,15 @@
         <div className="container">
           <div className="dashboard-header">
             <div>
-              <h1>NFT-Assembler - Mis Proyectos</h1>
-              <p style={{color: '#64748b'}}>Gestiona tus diseños de bancos hidropónicos</p>
+              <h1>NFT-Assembler - Gestor Cloud</h1>
+              <p style={{color: '#64748b'}}>Sincronizado con Supabase Database</p>
             </div>
             <button className="btn-primary" onClick={handleNuevo}>+ Nuevo Proyecto</button>
           </div>
 
-          {proyectos.length === 0 ? (
+          {cargando ? (
+            <div className="loading-state">Conectando con la base de datos...</div>
+          ) : proyectos.length === 0 ? (
             <div className="empty-state">
               <h2>No tienes proyectos guardados</h2>
               <p>Haz clic en "Nuevo Proyecto" para empezar a diseñar tu primer banco.</p>
@@ -624,20 +674,6 @@
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
-  </script>
-  
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(registration => {
-            console.log('ServiceWorker registrado con éxito:', registration.scope);
-          })
-          .catch(error => {
-            console.log('Fallo al registrar ServiceWorker:', error);
-          });
-      });
-    }
   </script>
 </body>
 </html>
